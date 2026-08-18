@@ -86,7 +86,7 @@ class AzureOpenAIModel:
         }).encode("utf-8")
         headers = {
             "Content-Type": "application/json",
-            "api-key": f"******",
+            "api-key": self._api_key,
         }
         request = Request(self._url, data=payload, headers=headers, method="POST")
 

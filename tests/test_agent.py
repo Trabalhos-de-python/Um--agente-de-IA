@@ -177,7 +177,7 @@ class AgentTests(unittest.TestCase):
         request = mock_urlopen.call_args.args[0]
         self.assertIn("gpt-4o", request.full_url)
         self.assertIn("chat/completions", request.full_url)
-        self.assertEqual(request.headers["Api-key"], "******")
+        self.assertEqual(request.headers["Api-key"], "test-key")
 
     def test_azure_openai_model_raises_on_empty_key(self):
         with self.assertRaises(ValueError):
