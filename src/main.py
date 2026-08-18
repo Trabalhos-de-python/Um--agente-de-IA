@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+import argparse
+
 from src.agent import Document, EchoReadyModel, RAGAgent, SimpleRetriever
 from src.projects import Project, ProjectManager
 
@@ -18,9 +22,31 @@ def build_project_manager() -> ProjectManager:
     ])
 
 
-if __name__ == "__main__":
+def _separator(title: str = "") -> str:
+    line = "─" * 60
+    return f"\n{line}\n{title}\n{line}" if title else f"\n{line}"
+
+
+def main(question: str) -> None:
     agent = build_agent()
     manager = build_project_manager()
-    question = "O que é RAG?"
+
+    print(_separator("Agente RAG"))
     print(agent.ask(question))
+
+    print(_separator("Gerenciador de Projetos"))
     print(manager.ask("Qual projeto está em andamento?"))
+
+    print(_separator())
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Agente de IA com RAG")
+    parser.add_argument(
+        "question",
+        nargs="?",
+        default="O que é RAG?",
+        help="Pergunta para o agente (padrão: 'O que é RAG?')",
+    )
+    args = parser.parse_args()
+    main(args.question)

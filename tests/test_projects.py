@@ -1,10 +1,12 @@
 import csv
 import io
+import json
 import os
 import tempfile
 import unittest
 from unittest.mock import MagicMock, patch
 
+from src.exceptions import DuplicateError, NotFoundError, ValidationError
 from src.projects import Project, ProjectManager, Task
 
 
@@ -71,7 +73,7 @@ class ProjectManagerTests(unittest.TestCase):
 
     def test_add_task_inexistent_project_raises(self):
         manager = ProjectManager()
-        with self.assertRaises(KeyError):
+        with self.assertRaises(NotFoundError):
             manager.add_task("nao-existe", Task("t1", "Tarefa"))
 
     def test_export_csv_with_projects(self):
@@ -173,27 +175,96 @@ class ProjectManagerTests(unittest.TestCase):
                 manager.import_csv_s3("bucket", "key")
         self.assertIn("boto3", str(ctx.exception))
 
+    # --- Custom exception tests ---
+
+    def test_add_duplicate_raises_duplicate_error(self):
+        manager = ProjectManager([Project("1", "Projeto", "Descrição", "planejado")])
+        with self.assertRaises(DuplicateError) as ctx:
+            manager.add_project(Project("1", "Duplicado", "Descrição", "planejado"))
+        self.assertIn("1", str(ctx.exception))
+
+    def test_get_nonexistent_raises_not_found_error(self):
+        manager = ProjectManager()
+        with self.assertRaises(NotFoundError) as ctx:
+            manager.get_project("nao-existe")
+        self.assertIn("nao-existe", str(ctx.exception))
+
+    def test_remove_nonexistent_raises_not_found_error(self):
+        manager = ProjectManager()
+        with self.assertRaises(NotFoundError):
+            manager.remove_project("nao-existe")
+
+    def test_invalid_status_raises_validation_error(self):
+        manager = ProjectManager([Project("1", "P", "D", "planejado")])
+        with self.assertRaises(ValidationError):
+            manager.update_status("1", "desconhecido")
+
+    def test_invalid_project_status_on_create_raises_validation_error(self):
+        with self.assertRaises(ValidationError):
+            ProjectManager([Project("3", "Inválido", "Descrição", "desconhecido")])
+
     def test_validation_errors(self):
         manager = ProjectManager()
         manager.add_project(Project("1", "Projeto", "Descrição", "planejado"))
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(DuplicateError):
             manager.add_project(Project("1", "Duplicado", "Descrição", "planejado"))
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(ValidationError):
             manager.update_status("1", "desconhecido")
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(ValidationError):
             manager.add_project(Project("3", "Inválido", "Descrição", "desconhecido"))
 
     def test_required_fields_validation(self):
-        with self.assertRaises(ValueError):
+        with self.assertRaises(ValidationError):
             Project("", "Projeto", "Descrição", "planejado").validate()
-        with self.assertRaises(ValueError):
+        with self.assertRaises(ValidationError):
             Project("1", " ", "Descrição", "planejado").validate()
-        with self.assertRaises(ValueError):
+        with self.assertRaises(ValidationError):
             Project("1", "Projeto", " ", "planejado").validate()
+
+    # --- JSON persistence tests ---
+
+    def test_save_and_load_json_roundtrip(self):
+        manager = ProjectManager([
+            Project("p1", "Projeto Alpha", "Criar API", "em_andamento",
+                    tasks=(Task("t1", "Setup DB"), Task("t2", "Build API", done=True))),
+            Project("p2", "App Mobile", "Planejar release", "planejado"),
+        ])
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".json") as tmp:
+            temp_path = tmp.name
+        try:
+            manager.save_json(temp_path)
+            loaded = ProjectManager.load_json(temp_path)
+
+            projects = loaded.list_projects()
+            self.assertEqual(len(projects), 2)
+            p1 = loaded.get_project("p1")
+            self.assertEqual(p1.name, "Projeto Alpha")
+            self.assertEqual(p1.status, "em_andamento")
+            self.assertEqual(len(p1.tasks), 2)
+            self.assertTrue(p1.tasks[1].done)
+
+            p2 = loaded.get_project("p2")
+            self.assertEqual(p2.name, "App Mobile")
+        finally:
+            os.remove(temp_path)
+
+    def test_save_json_produces_valid_json(self):
+        manager = ProjectManager([Project("x", "X", "Desc", "planejado")])
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".json") as tmp:
+            temp_path = tmp.name
+        try:
+            manager.save_json(temp_path)
+            with open(temp_path, encoding="utf-8") as f:
+                data = json.load(f)
+            self.assertIsInstance(data, list)
+            self.assertEqual(data[0]["id"], "x")
+        finally:
+            os.remove(temp_path)
 
 
 if __name__ == "__main__":
     unittest.main()
+

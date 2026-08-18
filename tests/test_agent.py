@@ -4,7 +4,16 @@ import unittest
 from unittest.mock import MagicMock, patch
 from urllib.error import URLError
 
-from src.agent import Document, EchoReadyModel, N8NWebhookModel, OpenAIModel, BedrockModel, RAGAgent, SimpleRetriever
+from src.agent import (
+    AzureOpenAIModel,
+    Document,
+    EchoReadyModel,
+    N8NWebhookModel,
+    OpenAIModel,
+    BedrockModel,
+    RAGAgent,
+    SimpleRetriever,
+)
 
 
 class AgentTests(unittest.TestCase):
@@ -64,12 +73,134 @@ class AgentTests(unittest.TestCase):
         self.assertEqual(len(docs), 1)
         self.assertEqual(docs[0].id, "1")
 
+    def test_retriever_default_k(self):
+        docs = [Document(str(i), f"documento único sobre assunto {i}") for i in range(5)]
+        retriever = SimpleRetriever(docs, default_k=2)
+        results = retriever.retrieve("documento assunto")
+        self.assertLessEqual(len(results), 2)
+
+    def test_retriever_empty_query_returns_empty(self):
+        retriever = SimpleRetriever([Document("1", "conteúdo")])
+        self.assertEqual(retriever.retrieve(""), [])
+        self.assertEqual(retriever.retrieve("   "), [])
+
+    def test_retriever_tfidf_ranks_by_relevance(self):
+        retriever = SimpleRetriever([
+            Document("rare", "xyzzy mágico"),
+            Document("common", "projeto projeto projeto"),
+        ])
+        results = retriever.retrieve("xyzzy mágico", k=2)
+        self.assertEqual(results[0].id, "rare")
+
     def test_rag_agent_builds_answer(self):
         retriever = SimpleRetriever([Document("1", "RAG reduz alucinação.")])
         agent = RAGAgent(model=EchoReadyModel(), retriever=retriever)
         answer = agent.ask("Como reduzir alucinação?")
         self.assertIn("Contexto", answer)
         self.assertIn("RAG reduz alucinação", answer)
+
+    def test_rag_agent_stores_history(self):
+        retriever = SimpleRetriever([Document("1", "RAG reduz alucinação.")])
+        agent = RAGAgent(model=EchoReadyModel(), retriever=retriever)
+        agent.ask("Primeira pergunta")
+        agent.ask("Segunda pergunta")
+        history = agent.conversation_history
+        self.assertEqual(len(history), 2)
+        self.assertEqual(history[0].question, "Primeira pergunta")
+        self.assertEqual(history[1].question, "Segunda pergunta")
+
+    def test_rag_agent_reset_clears_history(self):
+        retriever = SimpleRetriever([Document("1", "RAG reduz alucinação.")])
+        agent = RAGAgent(model=EchoReadyModel(), retriever=retriever)
+        agent.ask("Uma pergunta")
+        agent.reset()
+        self.assertEqual(agent.conversation_history, [])
+
+    def test_rag_agent_history_included_in_prompt(self):
+        retriever = SimpleRetriever([Document("1", "RAG reduz alucinação.")])
+        prompts: list[str] = []
+
+        class CapturingModel:
+            def generate(self, prompt: str) -> str:
+                prompts.append(prompt)
+                return "ok"
+
+        agent = RAGAgent(model=CapturingModel(), retriever=retriever)
+        agent.ask("Primeira")
+        agent.ask("Segunda")
+        self.assertIn("Primeira", prompts[1])
+
+    def test_rag_agent_respects_max_history(self):
+        retriever = SimpleRetriever([Document("1", "assunto.")])
+        prompts: list[str] = []
+
+        class CapturingModel:
+            def generate(self, prompt: str) -> str:
+                prompts.append(prompt)
+                return "ok"
+
+        agent = RAGAgent(model=CapturingModel(), retriever=retriever, max_history=1)
+        agent.ask("Pergunta A")
+        agent.ask("Pergunta B")
+        agent.ask("Pergunta C")
+        # Only last 1 turn should appear in the prompt for C
+        self.assertNotIn("Pergunta A", prompts[2])
+        self.assertIn("Pergunta B", prompts[2])
+
+    def test_rag_agent_system_prompt_present(self):
+        retriever = SimpleRetriever([Document("1", "assunto.")])
+        prompts: list[str] = []
+
+        class CapturingModel:
+            def generate(self, prompt: str) -> str:
+                prompts.append(prompt)
+                return "ok"
+
+        agent = RAGAgent(model=CapturingModel(), retriever=retriever)
+        agent.ask("Teste")
+        self.assertIn("agente de IA", prompts[0])
+
+    def test_azure_openai_model_success(self):
+        model = AzureOpenAIModel(
+            api_key="test-key",
+            endpoint="https://my-resource.openai.azure.com",
+            deployment_name="gpt-4o",
+        )
+        with patch("src.agent.urlopen") as mock_urlopen:
+            response = mock_urlopen.return_value.__enter__.return_value
+            response.read.return_value = b'{"choices":[{"message":{"content":"resposta azure"}}]}'
+            response.headers.get_content_charset.return_value = "utf-8"
+
+            answer = model.generate("Teste Azure")
+
+        self.assertEqual(answer, "resposta azure")
+        request = mock_urlopen.call_args.args[0]
+        self.assertIn("gpt-4o", request.full_url)
+        self.assertIn("chat/completions", request.full_url)
+        self.assertEqual(request.headers["Api-key"], "test-key")
+
+    def test_azure_openai_model_raises_on_empty_key(self):
+        with self.assertRaises(ValueError):
+            AzureOpenAIModel(api_key="  ", endpoint="https://ep.com", deployment_name="dep")
+
+    def test_azure_openai_model_raises_on_bad_endpoint(self):
+        with self.assertRaises(ValueError):
+            AzureOpenAIModel(api_key="k", endpoint="not-a-url", deployment_name="dep")
+
+    def test_azure_openai_model_raises_on_empty_deployment(self):
+        with self.assertRaises(ValueError):
+            AzureOpenAIModel(api_key="k", endpoint="https://ep.com", deployment_name="")
+
+    def test_azure_openai_model_wraps_transport_errors(self):
+        model = AzureOpenAIModel(
+            api_key="key",
+            endpoint="https://my-resource.openai.azure.com",
+            deployment_name="gpt-4o",
+        )
+        with patch("src.agent.urlopen", side_effect=URLError("offline")):
+            with self.assertRaises(RuntimeError) as ctx:
+                model.generate("Teste")
+        self.assertIn("Azure OpenAI", str(ctx.exception))
 
     def test_bedrock_model_success_response(self):
         mock_boto3 = MagicMock()
