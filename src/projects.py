@@ -2,10 +2,13 @@ from __future__ import annotations
 
 import csv
 import io
-from dataclasses import dataclass, replace
+import json
+import pathlib
+from dataclasses import asdict, dataclass, replace
 from typing import Iterable
 
 from src.agent import Document, EchoReadyModel, RAGAgent, ReadyModel, SimpleRetriever
+from src.exceptions import DuplicateError, NotFoundError, ValidationError
 
 try:
     import boto3
@@ -24,9 +27,9 @@ class Task:
 
     def validate(self) -> None:
         if not self.id.strip():
-            raise ValueError("id da tarefa não pode ser vazio")
+            raise ValidationError("id da tarefa não pode ser vazio")
         if not self.title.strip():
-            raise ValueError("título da tarefa não pode ser vazio")
+            raise ValidationError("título da tarefa não pode ser vazio")
 
 
 @dataclass(frozen=True)
@@ -39,13 +42,15 @@ class Project:
 
     def validate(self) -> None:
         if not self.id.strip():
-            raise ValueError("id do projeto não pode ser vazio")
+            raise ValidationError("id do projeto não pode ser vazio")
         if not self.name.strip():
-            raise ValueError("nome do projeto não pode ser vazio")
+            raise ValidationError("nome do projeto não pode ser vazio")
         if not self.description.strip():
-            raise ValueError("descrição do projeto não pode ser vazia")
+            raise ValidationError("descrição do projeto não pode ser vazia")
         if self.status not in VALID_STATUSES:
-            raise ValueError(f"status inválido: {self.status}")
+            raise ValidationError(
+                f"status inválido: '{self.status}'. Valores aceitos: {sorted(VALID_STATUSES)}"
+            )
         for task in self.tasks:
             task.validate()
 
@@ -59,24 +64,28 @@ class ProjectManager:
     def add_project(self, project: Project) -> None:
         project.validate()
         if project.id in self._projects:
-            raise ValueError(f"projeto já existe: {project.id}")
+            raise DuplicateError("projeto", project.id)
         self._projects[project.id] = project
 
     def get_project(self, project_id: str) -> Project:
         if project_id not in self._projects:
-            raise KeyError(f"projeto não encontrado: {project_id}")
+            raise NotFoundError("projeto", project_id)
         return self._projects[project_id]
 
     def list_projects(self, status: str | None = None) -> list[Project]:
         if status is None:
             return list(self._projects.values())
         if status not in VALID_STATUSES:
-            raise ValueError(f"status inválido: {status}")
+            raise ValidationError(
+                f"status inválido: '{status}'. Valores aceitos: {sorted(VALID_STATUSES)}"
+            )
         return [project for project in self._projects.values() if project.status == status]
 
     def update_status(self, project_id: str, status: str) -> Project:
         if status not in VALID_STATUSES:
-            raise ValueError(f"status inválido: {status}")
+            raise ValidationError(
+                f"status inválido: '{status}'. Valores aceitos: {sorted(VALID_STATUSES)}"
+            )
         project = self.get_project(project_id)
         updated = replace(project, status=status)
         self._projects[project_id] = updated
@@ -84,7 +93,7 @@ class ProjectManager:
 
     def remove_project(self, project_id: str) -> None:
         if project_id not in self._projects:
-            raise KeyError(f"projeto não encontrado: {project_id}")
+            raise NotFoundError("projeto", project_id)
         del self._projects[project_id]
 
     def add_task(self, project_id: str, task: Task) -> Project:
@@ -140,6 +149,46 @@ class ProjectManager:
                     "description": project.description,
                     "status": project.status,
                 })
+
+    def save_json(self, filepath: str) -> None:
+        """Salva todos os projetos (com tarefas) em um arquivo JSON local."""
+        data: list[dict] = []
+        for project in self._projects.values():
+            entry: dict = {
+                "id": project.id,
+                "name": project.name,
+                "description": project.description,
+                "status": project.status,
+                "tasks": [
+                    {"id": t.id, "title": t.title, "done": t.done}
+                    for t in project.tasks
+                ],
+            }
+            data.append(entry)
+        pathlib.Path(filepath).write_text(
+            json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+
+    @classmethod
+    def load_json(cls, filepath: str) -> "ProjectManager":
+        """Carrega projetos de um arquivo JSON local e retorna um novo ProjectManager."""
+        raw = pathlib.Path(filepath).read_text(encoding="utf-8")
+        data: list[dict] = json.loads(raw)
+        manager = cls()
+        for entry in data:
+            tasks = tuple(
+                Task(id=t["id"], title=t["title"], done=t.get("done", False))
+                for t in entry.get("tasks", [])
+            )
+            project = Project(
+                id=entry["id"],
+                name=entry["name"],
+                description=entry["description"],
+                status=entry.get("status", "planejado"),
+                tasks=tasks,
+            )
+            manager.add_project(project)
+        return manager
 
     def export_csv_s3(self, bucket: str, key: str, region_name: str | None = None) -> None:
         """Exporta projetos como CSV para um bucket do Amazon S3."""

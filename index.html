@@ -504,7 +504,7 @@
 <body>
 
   <!-- ── NAV ─────────────────────────────────────────────────── -->
-  <nav>
+  <nav aria-label="Navegação principal">
     <div class="inner">
       <a class="nav-brand" href="#" style="text-decoration:none">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -619,14 +619,14 @@
           <div class="arch-num">2</div>
           <div>
             <h3>Camada de recuperação</h3>
-            <p><strong>SimpleRetriever</strong> por sobreposição de termos. Interface aberta para dense retrieval.</p>
+            <p><strong>SimpleRetriever</strong> baseado em TF-IDF com remoção de stopwords. Interface aberta para dense retrieval.</p>
           </div>
         </div>
         <div class="arch-item">
           <div class="arch-num">3</div>
           <div>
             <h3>Camada de geração</h3>
-            <p><strong>ReadyModel</strong> (Protocol) + adaptadores concretos: <em>EchoReadyModel</em>, <em>N8NWebhookModel</em>, <em>OpenAIModel</em>.</p>
+            <p><strong>ReadyModel</strong> (Protocol) + adaptadores concretos: <em>EchoReadyModel</em>, <em>N8NWebhookModel</em>, <em>OpenAIModel</em>, <em>AzureOpenAIModel</em>, <em>BedrockModel</em>.</p>
           </div>
         </div>
         <div class="arch-item">
@@ -640,14 +640,17 @@
 
       <div class="tree" aria-label="Estrutura de arquivos do projeto">
         <span class="dir">src/</span><br>
-        &nbsp;&nbsp;├─ <span class="file">agent.py</span>      <span class="note"># RAGAgent · SimpleRetriever · modelos</span><br>
-        &nbsp;&nbsp;├─ <span class="file">main.py</span>       <span class="note"># execução via CLI</span><br>
-        &nbsp;&nbsp;├─ <span class="file">training.py</span>   <span class="note"># curadoria e split de dados</span><br>
-        &nbsp;&nbsp;├─ <span class="file">evaluation.py</span> <span class="note"># exact_match · context_recall</span><br>
-        &nbsp;&nbsp;└─ <span class="file">projects.py</span>   <span class="note"># ProjectManager · Task · status</span><br>
+        &nbsp;&nbsp;├─ <span class="file">agent.py</span>      <span class="note"># RAGAgent · SimpleRetriever TF-IDF · histórico · modelos</span><br>
+        &nbsp;&nbsp;├─ <span class="file">exceptions.py</span> <span class="note"># NotFoundError · DuplicateError · ValidationError</span><br>
+        &nbsp;&nbsp;├─ <span class="file">main.py</span>       <span class="note"># execução via CLI (argparse)</span><br>
+        &nbsp;&nbsp;├─ <span class="file">training.py</span>   <span class="note"># split com shuffle · augment_dataset</span><br>
+        &nbsp;&nbsp;├─ <span class="file">evaluation.py</span> <span class="note"># exact_match · recall · precision · F1 · MRR</span><br>
+        &nbsp;&nbsp;├─ <span class="file">projects.py</span>   <span class="note"># ProjectManager · save/load JSON · S3</span><br>
+        &nbsp;&nbsp;└─ <span class="file">problems.py</span>   <span class="note"># ProblemManager · save/load JSON</span><br>
         <span class="dir">tests/</span><br>
         &nbsp;&nbsp;├─ <span class="file">test_agent.py</span><br>
         &nbsp;&nbsp;├─ <span class="file">test_projects.py</span><br>
+        &nbsp;&nbsp;├─ <span class="file">test_problems.py</span><br>
         &nbsp;&nbsp;└─ <span class="file">test_training_evaluation.py</span>
       </div>
     </div>

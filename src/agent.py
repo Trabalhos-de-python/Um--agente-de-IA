@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import json
+import math
 import re
 from typing import Iterable, Protocol
 from urllib.error import URLError
@@ -12,11 +13,27 @@ try:
 except ImportError:  # pragma: no cover
     boto3 = None  # type: ignore[assignment]
 
+# ---------------------------------------------------------------------------
+# Stopwords comuns em português para melhorar a pontuação do retriever
+# ---------------------------------------------------------------------------
+_PT_STOPWORDS: frozenset[str] = frozenset({
+    "a", "ao", "aos", "as", "com", "da", "das", "de", "do", "dos",
+    "e", "em", "é", "na", "nas", "no", "nos", "o", "os", "ou",
+    "para", "pela", "pelas", "pelo", "pelos", "por", "que", "se",
+    "um", "uma", "uns", "umas",
+})
+
 
 @dataclass(frozen=True)
 class Document:
     id: str
     content: str
+
+
+@dataclass
+class ConversationTurn:
+    question: str
+    answer: str
 
 
 class ReadyModel(Protocol):
@@ -32,6 +49,74 @@ class EchoReadyModel:
 
     def generate(self, prompt: str) -> str:
         return f"[Resposta do modelo]\n{prompt}"
+
+
+class AzureOpenAIModel:
+    """Adapter ReadyModel para Azure OpenAI Chat Completions API."""
+
+    def __init__(
+        self,
+        api_key: str,
+        endpoint: str,
+        deployment_name: str,
+        api_version: str = "2024-02-01",
+        timeout: float = 30.0,
+    ) -> None:
+        normalized_key = api_key.strip()
+        normalized_endpoint = endpoint.strip().rstrip("/")
+        normalized_deployment = deployment_name.strip()
+        if not normalized_key:
+            raise ValueError("api_key do Azure OpenAI não pode ser vazia")
+        if not normalized_endpoint.startswith(("http://", "https://")):
+            raise ValueError(
+                f"endpoint do Azure OpenAI precisa ser uma URL HTTP/HTTPS válida, recebido: {normalized_endpoint}"
+            )
+        if not normalized_deployment:
+            raise ValueError("deployment_name do Azure OpenAI não pode ser vazio")
+        self._api_key = normalized_key
+        self._timeout = timeout
+        self._url = (
+            f"{normalized_endpoint}/openai/deployments/{normalized_deployment}"
+            f"/chat/completions?api-version={api_version}"
+        )
+
+    def generate(self, prompt: str) -> str:
+        payload = json.dumps({
+            "messages": [{"role": "user", "content": prompt}],
+        }).encode("utf-8")
+        headers = {
+            "Content-Type": "application/json",
+            "api-key": f"******",
+        }
+        request = Request(self._url, data=payload, headers=headers, method="POST")
+
+        try:
+            with urlopen(request, timeout=self._timeout) as response:
+                charset = response.headers.get_content_charset("utf-8")
+                if not isinstance(charset, str):
+                    charset = "utf-8"
+                response_body = response.read().decode(charset)
+        except URLError as exc:
+            raise RuntimeError(f"falha ao chamar Azure OpenAI em {self._url}: {exc}") from exc
+
+        try:
+            parsed = json.loads(response_body)
+        except json.JSONDecodeError:
+            return response_body
+
+        if isinstance(parsed, dict):
+            choices = parsed.get("choices")
+            if isinstance(choices, list) and choices:
+                first_choice = choices[0]
+                if isinstance(first_choice, dict):
+                    message = first_choice.get("message")
+                    if isinstance(message, dict):
+                        content = message.get("content")
+                        if isinstance(content, str):
+                            return content
+            return json.dumps(parsed, ensure_ascii=False)
+
+        return response_body
 
 
 class N8NWebhookModel:
@@ -189,42 +274,112 @@ class BedrockModel:
 
 
 class SimpleRetriever:
-    def __init__(self, documents: Iterable[Document]) -> None:
+    """Retriever baseado em TF-IDF simples usando apenas a stdlib."""
+
+    def __init__(self, documents: Iterable[Document], default_k: int = 3) -> None:
         self._documents = list(documents)
+        self.default_k = default_k
+        self._idf: dict[str, float] = {}
+        self._doc_tfs: list[dict[str, float]] = []
+        self._build_index()
 
     @staticmethod
-    def _normalize(text: str) -> set[str]:
+    def _tokenize(text: str) -> list[str]:
         cleaned = re.sub(r"[^\w\s]", " ", text.lower())
-        return {token for token in cleaned.split() if token}
+        return [t for t in cleaned.split() if t and t not in _PT_STOPWORDS]
 
-    def retrieve(self, query: str, k: int = 3) -> list[Document]:
-        query_tokens = self._normalize(query)
-        if not query_tokens:
+    def _build_index(self) -> None:
+        n = len(self._documents)
+        if n == 0:
+            return
+
+        self._doc_tfs = []
+        df: dict[str, int] = {}
+
+        for doc in self._documents:
+            tokens = self._tokenize(doc.content)
+            tf: dict[str, float] = {}
+            for token in tokens:
+                tf[token] = tf.get(token, 0) + 1
+            total = max(len(tokens), 1)
+            self._doc_tfs.append({k: v / total for k, v in tf.items()})
+            for token in tf:
+                df[token] = df.get(token, 0) + 1
+
+        self._idf = {
+            token: math.log((n + 1) / (count + 1)) + 1
+            for token, count in df.items()
+        }
+
+    def retrieve(self, query: str, k: int | None = None) -> list[Document]:
+        top_k = k if k is not None else self.default_k
+        query_tokens = self._tokenize(query)
+        if not query_tokens or not self._documents:
             return []
 
-        scored: list[tuple[int, Document]] = []
-        for doc in self._documents:
-            score = len(query_tokens & self._normalize(doc.content))
+        scores: list[tuple[float, Document]] = []
+        for doc, tf in zip(self._documents, self._doc_tfs):
+            score = sum(
+                tf.get(token, 0.0) * self._idf.get(token, 0.0)
+                for token in query_tokens
+            )
             if score > 0:
-                scored.append((score, doc))
+                scores.append((score, doc))
 
-        scored.sort(key=lambda item: item[0], reverse=True)
-        return [doc for _, doc in scored[:k]]
+        scores.sort(key=lambda item: item[0], reverse=True)
+        return [doc for _, doc in scores[:top_k]]
 
 
 class RAGAgent:
-    def __init__(self, model: ReadyModel, retriever: SimpleRetriever) -> None:
+    """Agente RAG com suporte a histórico de conversa."""
+
+    SYSTEM_PROMPT = (
+        "Você é um agente de IA para suporte de projetos. "
+        "Responda com base no contexto recuperado e cite o ID do documento de origem entre colchetes, "
+        "por exemplo [doc-id], quando aplicável. "
+        "Seja objetivo e preciso."
+    )
+
+    def __init__(
+        self,
+        model: ReadyModel,
+        retriever: SimpleRetriever,
+        max_history: int = 5,
+    ) -> None:
         self.model = model
         self.retriever = retriever
+        self.max_history = max_history
+        self._history: list[ConversationTurn] = []
+
+    @property
+    def conversation_history(self) -> list[ConversationTurn]:
+        return list(self._history)
+
+    def reset(self) -> None:
+        """Limpa o histórico de conversa."""
+        self._history.clear()
 
     def ask(self, question: str) -> str:
         context_docs = self.retriever.retrieve(question)
         context = "\n\n".join(f"[{doc.id}] {doc.content}" for doc in context_docs)
 
-        prompt = (
-            "Você é um agente de IA para suporte de projetos. "
-            "Responda com base no contexto recuperado.\n\n"
+        history_text = ""
+        if self._history:
+            recent = self._history[-self.max_history:]
+            history_lines = []
+            for turn in recent:
+                history_lines.append(f"Usuário: {turn.question}")
+                history_lines.append(f"Agente: {turn.answer}")
+            history_text = "\n".join(history_lines) + "\n\n"
+
+        user_prompt = (
+            f"{history_text}"
             f"Pergunta: {question}\n"
             f"Contexto:\n{context if context else '(sem contexto encontrado)'}\n"
         )
-        return self.model.generate(prompt)
+
+        full_prompt = f"{self.SYSTEM_PROMPT}\n\n{user_prompt}"
+        answer = self.model.generate(full_prompt)
+
+        self._history.append(ConversationTurn(question=question, answer=answer))
+        return answer
