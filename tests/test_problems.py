@@ -1,10 +1,12 @@
+from __future__ import annotations
+
 import json
 import os
 import tempfile
 import unittest
 
-from src.exceptions import DuplicateError, NotFoundError, ValidationError
-from src.problems import Problem, ProblemManager
+from um_agente_de_ia.exceptions import DuplicateError, NotFoundError, ValidationError
+from um_agente_de_ia.problems import Problem, ProblemManager
 
 
 class ProblemManagerTests(unittest.TestCase):

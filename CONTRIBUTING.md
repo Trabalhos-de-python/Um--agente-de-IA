@@ -18,15 +18,22 @@ Pré-requisitos:
 Instalação:
 
 ```bash
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 ```
+
+Opcionalmente, para instalar o projeto em modo editável:
+
+```bash
+python -m pip install -e .
+```
+
 
 ## Executando testes
 
 Antes de abrir PR, rode:
 
 ```bash
-python3 -m unittest discover -s tests -p 'test_*.py'
+python -m unittest discover -s tests -p 'test_*.py'
 ```
 
 ## Padrões de contribuição

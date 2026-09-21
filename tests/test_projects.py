@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import csv
 import io
 import json
@@ -6,8 +8,8 @@ import tempfile
 import unittest
 from unittest.mock import MagicMock, patch
 
-from src.exceptions import DuplicateError, NotFoundError, ValidationError
-from src.projects import Project, ProjectManager, Task
+from um_agente_de_ia.exceptions import DuplicateError, NotFoundError, ValidationError
+from um_agente_de_ia.projects import Project, ProjectManager, Task
 
 
 class ProjectManagerTests(unittest.TestCase):
@@ -117,7 +119,7 @@ class ProjectManagerTests(unittest.TestCase):
         mock_boto3 = MagicMock()
         mock_s3 = mock_boto3.client.return_value
 
-        with patch("src.projects.boto3", mock_boto3):
+        with patch("um_agente_de_ia.projects.boto3", mock_boto3):
             manager.export_csv_s3("meu-bucket", "projetos/export.csv", region_name="us-east-1")
 
         mock_boto3.client.assert_called_once_with("s3", region_name="us-east-1")
@@ -140,7 +142,7 @@ class ProjectManagerTests(unittest.TestCase):
         mock_s3.get_object.return_value = {"Body": io.BytesIO(csv_content.encode("utf-8"))}
 
         manager = ProjectManager()
-        with patch("src.projects.boto3", mock_boto3):
+        with patch("um_agente_de_ia.projects.boto3", mock_boto3):
             manager.import_csv_s3("meu-bucket", "projetos/import.csv", region_name="sa-east-1")
 
         mock_boto3.client.assert_called_once_with("s3", region_name="sa-east-1")
@@ -155,7 +157,7 @@ class ProjectManagerTests(unittest.TestCase):
         mock_s3.get_object.return_value = {"Body": io.BytesIO(csv_content.encode("utf-8"))}
 
         manager = ProjectManager([Project("1", "Projeto Alpha", "Criar API", "planejado")])
-        with patch("src.projects.boto3", mock_boto3):
+        with patch("um_agente_de_ia.projects.boto3", mock_boto3):
             manager.import_csv_s3("meu-bucket", "projetos/import.csv")
 
         self.assertEqual(len(manager.list_projects()), 2)
@@ -163,14 +165,14 @@ class ProjectManagerTests(unittest.TestCase):
 
     def test_export_csv_s3_raises_when_boto3_unavailable(self):
         manager = ProjectManager()
-        with patch("src.projects.boto3", None):
+        with patch("um_agente_de_ia.projects.boto3", None):
             with self.assertRaises(ImportError) as ctx:
                 manager.export_csv_s3("bucket", "key")
         self.assertIn("boto3", str(ctx.exception))
 
     def test_import_csv_s3_raises_when_boto3_unavailable(self):
         manager = ProjectManager()
-        with patch("src.projects.boto3", None):
+        with patch("um_agente_de_ia.projects.boto3", None):
             with self.assertRaises(ImportError) as ctx:
                 manager.import_csv_s3("bucket", "key")
         self.assertIn("boto3", str(ctx.exception))

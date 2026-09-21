@@ -9,10 +9,11 @@ Construir um agente de IA modular para apoiar projetos em tempo real, usando **R
 - **Linguagem:** Python 3.11+
 - **Bibliotecas padrão usadas no código atual:** `dataclasses`, `typing`, `json`, `pathlib`, `re`, `urllib`
 - **Modelos prontos:** via adapter (`ReadyModel`), permitindo trocar o provedor sem alterar o núcleo do agente
+- **Empacotamento:** `pyproject.toml` com metadados do projeto e requisito mínimo de Python
 
 ## Estrutura
 ```text
-src/
+um_agente_de_ia/
   agent.py        # Núcleo RAG (ingestão, recuperação, prompt e resposta)
   main.py         # Exemplo de execução via CLI
   training.py     # Pipeline simples de preparo de dados
@@ -28,12 +29,12 @@ src/
 4. **Orquestração RAG**: `RAGAgent.ask()` monta contexto + prompt + chamada ao modelo.
 
 ## Integração com n8n
-- O projeto agora inclui `N8NWebhookModel` em `src/agent.py`.
+- O projeto agora inclui `N8NWebhookModel` em `um_agente_de_ia/agent.py`.
 - Essa integração envia `{"prompt": "...texto..."}` para um webhook n8n via `POST` e usa o retorno para responder.
 - Campos de resposta priorizados no JSON retornado: `response`, `answer`, `text`, `output`.
 - Exemplo de uso:
 ```python
-from src.agent import Document, N8NWebhookModel, RAGAgent, SimpleRetriever
+from um_agente_de_ia.agent import Document, N8NWebhookModel, RAGAgent, SimpleRetriever
 
 docs = [Document("1", "Contexto do projeto")]
 model = N8NWebhookModel(
@@ -47,11 +48,11 @@ print(agent.ask("Me atualize sobre o projeto"))
 ## Integração com AWS
 
 ### Amazon Bedrock (modelos de linguagem)
-- `BedrockModel` em `src/agent.py` usa o Amazon Bedrock Runtime para invocar modelos de IA (padrão: Anthropic Claude 3 Haiku).
+- `BedrockModel` em `um_agente_de_ia/agent.py` usa o Amazon Bedrock Runtime para invocar modelos de IA (padrão: Anthropic Claude 3 Haiku).
 - Autenticação via cadeia de credenciais padrão do boto3 (`AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`, perfil `~/.aws/credentials`, IAM Role, etc.).
 - Exemplo de uso:
 ```python
-from src.agent import BedrockModel, Document, RAGAgent, SimpleRetriever
+from um_agente_de_ia.agent import BedrockModel, Document, RAGAgent, SimpleRetriever
 
 docs = [Document("1", "Contexto do projeto")]
 model = BedrockModel(
@@ -67,7 +68,7 @@ print(agent.ask("Resuma o projeto"))
 - `ProjectManager.import_csv_s3(bucket, key)` — importa projetos de um CSV armazenado no S3.
 - Exemplo de uso:
 ```python
-from src.projects import Project, ProjectManager
+from um_agente_de_ia.projects import Project, ProjectManager
 
 manager = ProjectManager([
     Project("p1", "Site institucional", "Atualizar landing page", "em_andamento"),
@@ -94,8 +95,10 @@ aws configure
 
 ### Dependências
 ```bash
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 ```
+
+`boto3` é instalado junto com o pacote para manter as integrações com AWS (Bedrock e S3) disponíveis por padrão.
 
 ## Infraestrutura sugerida
 - Executar localmente com Python.
@@ -114,26 +117,26 @@ pip install -r requirements.txt
   - sem hardcode de segredos
 
 ## Treinamento
-- `src/training.py` descreve base para curadoria, limpeza e split de dados.
+- `um_agente_de_ia/training.py` descreve base para curadoria, limpeza e split de dados.
 - Estratégia recomendada:
   - usar fine-tuning somente quando necessário
   - priorizar RAG para reduzir custo e risco de alucinação
 
 ## Avaliação
-- `src/evaluation.py` inclui métricas iniciais:
+- `um_agente_de_ia/evaluation.py` inclui métricas iniciais:
   - `exact_match`
   - `context_recall`
 - Evoluir com avaliações humanas e testes de segurança (prompt injection e data leakage).
 
 ## Sistema de controle de projetos
-- `src/projects.py` adiciona um gerenciador de projetos com:
+- `um_agente_de_ia/projects.py` adiciona um gerenciador de projetos com:
   - cadastro e remoção de projetos
   - atualização de status (`planejado`, `em_andamento`, `pausado`, `concluido`, `cancelado`)
   - busca por nome/descrição
   - perguntas ao agente com contexto dos projetos cadastrados
 
 ## Modelos de problemas
-- `src/problems.py` adiciona modelos para registrar problemas do projeto com:
+- `um_agente_de_ia/problems.py` adiciona modelos para registrar problemas do projeto com:
   - cadastro e remoção de problemas
   - atualização de status (`aberto`, `investigando`, `resolvido`, `arquivado`)
   - controle de severidade (`baixa`, `media`, `alta`, `critica`)
@@ -142,14 +145,30 @@ pip install -r requirements.txt
 
 ## Como executar
 ```bash
-python3 -m src.main
+python -m um_agente_de_ia.main
 ```
+
+Se preferir usar instalação editável com a estrutura moderna do projeto:
+
+```bash
+python -m pip install -e .
+python -m um_agente_de_ia.main
+```
+
+## Testes
+```bash
+python -m unittest discover -s tests -p 'test_*.py'
+```
+
+## Compatibilidade
+- Pacote compatível com Python 3.11+
+- CI configurada para Python 3.11, 3.12 e 3.13
 
 ## Página inicial
 - Foi adicionada uma página estática em `index.html`.
 - Para abrir localmente no navegador, execute um servidor local:
 ```bash
-python3 -m http.server 8000
+python -m http.server 8000
 ```
 Depois acesse: `http://localhost:8000`
 

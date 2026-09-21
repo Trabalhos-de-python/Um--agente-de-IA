@@ -1,13 +1,15 @@
+from __future__ import annotations
+
 import unittest
 
-from src.evaluation import (
+from um_agente_de_ia.evaluation import (
     context_recall,
     exact_match,
     f1_score,
     mean_reciprocal_rank,
     precision_at_k,
 )
-from src.training import TrainingExample, augment_dataset, split_dataset
+from um_agente_de_ia.training import TrainingExample, augment_dataset, split_dataset
 
 
 class TrainingAndEvaluationTests(unittest.TestCase):
