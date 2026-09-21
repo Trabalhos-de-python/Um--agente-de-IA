@@ -11,6 +11,7 @@ Construir um agente de IA modular para apoiar projetos em tempo real, usando **R
 ## Stack (linguagem e bibliotecas)
 - **Linguagem:** Python 3.11+
 - **Bibliotecas padrão usadas no código atual:** `dataclasses`, `typing`, `json`, `pathlib`, `re`, `urllib`
+- **API e serving:** `FastAPI` + `uvicorn`
 - **Modelos prontos:** via adapter (`ReadyModel`), permitindo trocar o provedor sem alterar o núcleo do agente
 - **Empacotamento:** `pyproject.toml` com metadados do projeto e requisito mínimo de Python
 
@@ -26,10 +27,11 @@ um_agente_de_ia/
 ```
 
 ## Design e arquitetura
-1. **Camada de conhecimento**: documentos em memória (`Document`) + índice simples.
-2. **Camada de recuperação**: `SimpleRetriever` por sobreposição de termos.
+1. **Camada de conhecimento**: documentos em memória (`Document`) + ingestão por API.
+2. **Camada de recuperação**: `SimpleRetriever` por sobreposição de termos e `VectorRetriever` com integração opcional ao Qdrant.
 3. **Camada de geração**: `ReadyModel` (interface) + implementação de exemplo (`EchoReadyModel`).
 4. **Orquestração RAG**: `RAGAgent.ask()` monta contexto + prompt + chamada ao modelo.
+5. **Operação**: `PromptGuard` protege a entrada e `AgentObservability` expõe métricas e trilha recente de uso.
 
 ## Integração com n8n
 - O projeto agora inclui `N8NWebhookModel` em `um_agente_de_ia/agent.py`.
@@ -103,12 +105,44 @@ python -m pip install -r requirements.txt
 
 `boto3` é instalado junto com o pacote para manter as integrações com AWS (Bedrock e S3) disponíveis por padrão.
 
-## Infraestrutura sugerida
+## API REST
+- O projeto agora inclui `um_agente_de_ia/api.py` com endpoints:
+  - `GET /health`
+  - `GET /metrics`
+  - `POST /documents`
+  - `POST /ask`
+- Execução local:
+```bash
+python -m pip install -r requirements.txt
+uvicorn um_agente_de_ia.api:app --reload
+```
+- Exemplo de ingestão:
+```bash
+curl -X POST http://127.0.0.1:8000/documents \
+  -H 'Content-Type: application/json' \
+  -d '{"documents":[{"id":"doc-1","content":"FastAPI expõe APIs REST para o agente."}]}'
+```
+- Exemplo de pergunta:
+```bash
+curl -X POST http://127.0.0.1:8000/ask \
+  -H 'Content-Type: application/json' \
+  -d '{"question":"Como a API REST foi exposta?"}'
+```
+
+## Banco vetorial
+- A API aceita integração opcional com **Qdrant** via variáveis de ambiente:
+  - `QDRANT_URL`
+  - `QDRANT_COLLECTION` (opcional, padrão `um-agente-de-ia`)
+  - `QDRANT_API_KEY` (opcional)
+- Quando `QDRANT_URL` está definido, o projeto usa `VectorRetriever` e mantém fallback local com `SimpleRetriever`.
+- Os vetores são gerados por `HashingVectorizer`, permitindo indexação determinística sem depender de um provedor externo de embeddings para o baseline.
+
+## Infraestrutura atual
 - Executar localmente com Python.
-- Evolução natural:
+- Capacidades já disponíveis:
   - API REST (FastAPI)
-  - Banco vetorial (FAISS/Qdrant/pgvector)
-  - Observabilidade (OpenTelemetry + logs estruturados)
+  - Banco vetorial opcional com Qdrant
+  - Observabilidade com logs estruturados e endpoint `/metrics`
   - CI/CD (lint/test/security scan)
 
 ## Segurança
@@ -117,6 +151,8 @@ python -m pip install -r requirements.txt
   - separação entre recuperação e geração
   - sanitização básica de texto antes de recuperação
   - prompt com contexto controlado
+  - bloqueio básico de prompt injection (`PromptGuard`)
+  - redaction de segredos em eventos de observabilidade
   - sem hardcode de segredos
 
 ## Treinamento
@@ -156,6 +192,13 @@ Se preferir usar instalação editável com a estrutura moderna do projeto:
 ```bash
 python -m pip install -e .
 python -m um_agente_de_ia.main
+```
+
+Para subir a API REST:
+
+```bash
+python -m pip install -e .
+python -m um_agente_de_ia.api
 ```
 
 ## Testes
