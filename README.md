@@ -2,6 +2,9 @@
 
 Projeto base para criar uma IA do zero com estrutura completa: sistemas, design, infraestrutura, segurança, código de conduta, licença, linguagem, bibliotecas, treinamento e avaliação.
 
+## Wiki do projeto
+- Consulte `WIKI.md` para uma visão consolidada da arquitetura, execução, testes e contribuições.
+
 ## Objetivo
 Construir um agente de IA modular para apoiar projetos em tempo real, usando **RAG** (Retrieval-Augmented Generation) e integração com **modelos prontos** (OpenAI, Azure OpenAI, Ollama, etc).
 
