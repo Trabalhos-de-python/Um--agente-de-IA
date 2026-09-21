@@ -20,4 +20,11 @@ from .agent import (
     SimpleRetriever,
     VectorRetriever,
 )
-from .exceptions import AgentError, DuplicateError, NotFoundError, PromptSecurityError, ValidationError
+from .exceptions import (
+    AgentError,
+    DuplicateError,
+    NotFoundError,
+    PromptSecurityError,
+    QdrantRequestError,
+    ValidationError,
+)

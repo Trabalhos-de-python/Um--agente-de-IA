@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 import unittest
 from unittest.mock import patch
+from urllib.error import HTTPError
+from urllib.request import Request
 
 from fastapi import HTTPException
 
@@ -149,3 +151,27 @@ class ApiTests(unittest.TestCase):
 
         self.assertEqual(len(documents), 1)
         self.assertEqual(documents[0].id, "doc-1")
+
+    def test_vector_retriever_creates_collection_after_404(self):
+        not_found = HTTPError(
+            url="https://qdrant.example.com/collections/docs",
+            code=404,
+            msg="Not Found",
+            hdrs=None,
+            fp=None,
+        )
+        not_found.read = lambda: b'{"status":"error","result":"not found"}'  # type: ignore[attr-defined]
+        responses = [
+            not_found,
+            _mock_response({"status": "ok", "result": True}),
+            _mock_response({"status": "ok", "result": {"operation_id": 1}}),
+        ]
+
+        with patch("um_agente_de_ia.agent.urlopen", side_effect=responses) as mock_urlopen:
+            retriever = VectorRetriever(QdrantVectorStore("https://qdrant.example.com", "docs"))
+            retriever.add_documents([Document("doc-1", "Banco vetorial com Qdrant")])
+
+        called_requests = [call.args[0] for call in mock_urlopen.call_args_list]
+        self.assertEqual(called_requests[0].get_method(), "GET")
+        self.assertEqual(called_requests[1].get_method(), "PUT")
+        self.assertEqual(called_requests[2].get_method(), "PUT")

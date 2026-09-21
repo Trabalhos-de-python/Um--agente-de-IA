@@ -12,7 +12,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import quote
 from urllib.request import Request, urlopen
 
-from .exceptions import PromptSecurityError
+from .exceptions import PromptSecurityError, QdrantRequestError
 
 try:
     import boto3
@@ -498,8 +498,8 @@ class QdrantVectorStore:
             self._request("GET", f"/collections/{self._collection_path}", None)
             self._collection_ready = True
             return
-        except RuntimeError as exc:
-            if "404" not in str(exc):
+        except QdrantRequestError as exc:
+            if exc.status_code != 404:
                 raise
         self._request(
             "PUT",
@@ -578,11 +578,14 @@ class QdrantVectorStore:
                 response_body = _decode_response_body(response)
         except HTTPError as exc:
             response_body = exc.read().decode("utf-8", errors="replace")
-            raise RuntimeError(
-                f"falha na integração com Qdrant ({method} {path}): {exc.code} {response_body}"
+            raise QdrantRequestError(
+                f"falha na integração com Qdrant ({method} {path}): {exc.code} {response_body}",
+                status_code=exc.code,
             ) from exc
         except URLError as exc:
-            raise RuntimeError(f"falha na integração com Qdrant ({method} {path}): {exc}") from exc
+            raise QdrantRequestError(
+                f"falha na integração com Qdrant ({method} {path}): {exc}"
+            ) from exc
 
         if not response_body.strip():
             return {}
