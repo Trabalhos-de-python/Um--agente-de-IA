@@ -72,7 +72,7 @@ class ApiTests(unittest.TestCase):
             )
         )
         self.assertEqual(response["indexed_documents"], 1)
-        self.assertEqual(health()["documents_available"], 1)
+        self.assertEqual(health()["local_documents_indexed"], 1)
 
         answer = ask_question(AskRequest(question="Como a API REST foi exposta?"))
         self.assertIn("FastAPI expõe APIs REST", answer["answer"])

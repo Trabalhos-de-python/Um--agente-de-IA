@@ -489,8 +489,11 @@ class QdrantVectorStore:
         self._vector_size = vector_size
         self._timeout = timeout
         self._api_key = api_key.strip() if api_key and api_key.strip() else None
+        self._collection_ready = False
 
     def ensure_collection(self) -> None:
+        if self._collection_ready:
+            return
         self._request(
             "PUT",
             f"/collections/{self._collection_path}",
@@ -501,6 +504,7 @@ class QdrantVectorStore:
                 }
             },
         )
+        self._collection_ready = True
 
     def upsert_documents(self, documents: Iterable[Document], embedder: HashingVectorizer) -> None:
         items = list(documents)
