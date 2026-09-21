@@ -367,7 +367,7 @@ class RAGAgent:
         context = "\n\n".join(f"[{doc.id}] {doc.content}" for doc in context_docs)
 
         history_text = ""
-        if self._history:
+        if self._history and self.max_history > 0:
             recent = self._history[-self.max_history:]
             history_lines = []
             for turn in recent:

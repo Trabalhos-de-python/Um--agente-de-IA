@@ -149,6 +149,20 @@ class AgentTests(unittest.TestCase):
         self.assertNotIn("Pergunta A", prompts[2])
         self.assertIn("Pergunta B", prompts[2])
 
+    def test_rag_agent_with_zero_history_does_not_include_previous_turns(self):
+        retriever = SimpleRetriever([Document("1", "assunto.")])
+        prompts: list[str] = []
+
+        class CapturingModel:
+            def generate(self, prompt: str) -> str:
+                prompts.append(prompt)
+                return "ok"
+
+        agent = RAGAgent(model=CapturingModel(), retriever=retriever, max_history=0)
+        agent.ask("Pergunta A")
+        agent.ask("Pergunta B")
+        self.assertNotIn("Pergunta A", prompts[1])
+
     def test_rag_agent_system_prompt_present(self):
         retriever = SimpleRetriever([Document("1", "assunto.")])
         prompts: list[str] = []

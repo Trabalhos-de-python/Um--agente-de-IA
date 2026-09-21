@@ -6,7 +6,7 @@ Projeto base para criar uma IA do zero com estrutura completa: sistemas, design,
 Construir um agente de IA modular para apoiar projetos em tempo real, usando **RAG** (Retrieval-Augmented Generation) e integração com **modelos prontos** (OpenAI, Azure OpenAI, Ollama, etc).
 
 ## Stack (linguagem e bibliotecas)
-- **Linguagem:** Python 3.12+
+- **Linguagem:** Python 3.11+
 - **Bibliotecas padrão usadas no código atual:** `dataclasses`, `typing`, `json`, `pathlib`, `re`, `urllib`
 - **Modelos prontos:** via adapter (`ReadyModel`), permitindo trocar o provedor sem alterar o núcleo do agente
 - **Empacotamento:** `pyproject.toml` com metadados do projeto e requisito mínimo de Python
@@ -170,7 +170,7 @@ python -m unittest discover -s tests -p 'test_*.py'
 ```
 
 ## Compatibilidade
-- Desenvolvimento local validado em Python 3.12
+- Pacote compatível com Python 3.11+
 - CI configurada para Python 3.12 e 3.13
 
 ## Página inicial

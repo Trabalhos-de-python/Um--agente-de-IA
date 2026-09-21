@@ -13,7 +13,7 @@ Obrigado por querer contribuir com o **Um Agente de IA**.
 ## Ambiente local
 
 Pré-requisitos:
-- Python 3.12+
+- Python 3.11+
 
 Instalação:
 
