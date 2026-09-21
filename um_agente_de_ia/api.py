@@ -19,6 +19,7 @@ from .agent import (
     SimpleRetriever,
     VectorRetriever,
 )
+from .exceptions import PromptSecurityError
 
 LOGGER = logging.getLogger(__name__)
 
@@ -142,7 +143,7 @@ def create_app(
     def ask_question(payload: AskRequest) -> dict[str, object]:
         try:
             answer = agent.ask(payload.question)
-        except ValueError as exc:
+        except PromptSecurityError as exc:
             raise HTTPException(
                 status_code=400,
                 detail={

@@ -12,6 +12,8 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import quote
 from urllib.request import Request, urlopen
 
+from .exceptions import PromptSecurityError
+
 try:
     import boto3
 except ImportError:  # pragma: no cover
@@ -736,7 +738,7 @@ class RAGAgent:
                 duration_ms=duration_ms,
                 triggered_rules=security_result.triggered_rules,
             )
-            raise ValueError("Prompt bloqueado por política de segurança.")
+            raise PromptSecurityError("Prompt bloqueado por política de segurança.")
 
         context_docs = self.retriever.retrieve(security_result.sanitized_text)
         context = "\n\n".join(f"[{doc.id}] {doc.content}" for doc in context_docs)
