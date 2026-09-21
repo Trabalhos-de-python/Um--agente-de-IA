@@ -14,4 +14,4 @@ dependencies = [
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["um_agente_de_ia", "um_agente_de_ia.*"]
+include = ["um_agente_de_ia", "um_agente_de_ia.*", "src", "src.*"]
