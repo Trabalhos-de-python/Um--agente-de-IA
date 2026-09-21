@@ -143,7 +143,7 @@ class N8NWebhookModel:
         payload = json.dumps({"prompt": prompt}).encode("utf-8")
         headers = {"Content-Type": "application/json"}
         if self._token:
-            headers["Authorization"] = f"******"
+            headers["Authorization"] = f"Bearer {self._token}"
 
         request = Request(self._webhook_url, data=payload, headers=headers, method="POST")
         try:

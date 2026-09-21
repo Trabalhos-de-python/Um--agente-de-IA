@@ -31,7 +31,8 @@ class AgentTests(unittest.TestCase):
             self.assertEqual(request.full_url, "https://example.com/webhook")
             self.assertEqual(request.get_method(), "POST")
             self.assertIn(b'"prompt": "Teste n8n"', request.data)
-            self.assertEqual(request.headers["Authorization"], "******")
+            self.assertTrue(request.headers["Authorization"].startswith("Bearer "))
+            self.assertTrue(request.headers["Authorization"].endswith("abc123"))
 
     def test_n8n_webhook_model_wraps_transport_errors(self):
         model = N8NWebhookModel("https://example.com/webhook")
@@ -54,7 +55,8 @@ class AgentTests(unittest.TestCase):
             request = mock_urlopen.call_args.args[0]
             self.assertEqual(request.full_url, "https://api.openai.com/v1/chat/completions")
             self.assertEqual(request.get_method(), "POST")
-            self.assertEqual(request.headers["Authorization"], "******")
+            self.assertTrue(request.headers["Authorization"].startswith("Bearer "))
+            self.assertTrue(request.headers["Authorization"].endswith("sk-test"))
             self.assertIn(b'"model": "gpt-4o-mini"', request.data)
             self.assertIn(b'"content": "Teste OpenAI"', request.data)
 
