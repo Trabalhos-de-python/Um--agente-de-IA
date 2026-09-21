@@ -63,6 +63,7 @@ class ApiTests(unittest.TestCase):
         app = create_app(agent=agent, retriever=retriever, observability=observability)
         index_documents = self._route(app, "/documents")
         ask_question = self._route(app, "/ask")
+        health = self._route(app, "/health")
         metrics = self._route(app, "/metrics")
 
         response = index_documents(
@@ -71,6 +72,7 @@ class ApiTests(unittest.TestCase):
             )
         )
         self.assertEqual(response["indexed_documents"], 1)
+        self.assertEqual(health()["documents_indexed"], 1)
 
         answer = ask_question(AskRequest(question="Como a API REST foi exposta?"))
         self.assertIn("FastAPI expõe APIs REST", answer["answer"])

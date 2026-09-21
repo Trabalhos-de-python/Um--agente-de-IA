@@ -591,6 +591,10 @@ class SimpleRetriever:
         self._doc_tfs: list[dict[str, float]] = []
         self._build_index()
 
+    @property
+    def document_count(self) -> int:
+        return len(self._documents)
+
     @staticmethod
     def _tokenize(text: str) -> list[str]:
         cleaned = re.sub(r"[^\w\s]", " ", text.lower())
@@ -659,6 +663,10 @@ class VectorRetriever:
         self.embedder = embedder or HashingVectorizer()
         self.default_k = default_k
         self._fallback = SimpleRetriever(fallback_documents, default_k=default_k)
+
+    @property
+    def document_count(self) -> int:
+        return self._fallback.document_count
 
     def add_documents(self, documents: Iterable[Document]) -> None:
         items = list(documents)
