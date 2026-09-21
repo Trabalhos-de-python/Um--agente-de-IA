@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import unittest
 
 from um_agente_de_ia.evaluation import (

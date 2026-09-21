@@ -20,9 +20,6 @@ um_agente_de_ia/
   evaluation.py   # Métricas básicas de avaliação
   projects.py     # Modelos e gestão de projetos
   problems.py     # Modelos e gestão de problemas
-
-src/
-  ...             # Compatibilidade com imports antigos
 ```
 
 ## Design e arquitetura
@@ -171,7 +168,7 @@ python -m unittest discover -s tests -p 'test_*.py'
 
 ## Compatibilidade
 - Pacote compatível com Python 3.11+
-- CI configurada para Python 3.12 e 3.13
+- CI configurada para Python 3.11, 3.12 e 3.13
 
 ## Página inicial
 - Foi adicionada uma página estática em `index.html`.
