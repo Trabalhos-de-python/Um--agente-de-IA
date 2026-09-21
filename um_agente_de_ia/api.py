@@ -119,7 +119,7 @@ def create_app(
         return {
             "status": "ok",
             "vector_backend": "qdrant" if isinstance(retriever, VectorRetriever) else "simple",
-            "documents_indexed": getattr(retriever, "document_count", observability.snapshot()["documents_indexed"]),
+            "documents_available": getattr(retriever, "document_count", observability.snapshot()["documents_indexed"]),
         }
 
     @app.get("/metrics")
