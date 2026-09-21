@@ -4,7 +4,7 @@ import unittest
 from unittest.mock import MagicMock, patch
 from urllib.error import URLError
 
-from src.agent import (
+from um_agente_de_ia.agent import (
     AzureOpenAIModel,
     Document,
     EchoReadyModel,
@@ -19,7 +19,7 @@ from src.agent import (
 class AgentTests(unittest.TestCase):
     def test_n8n_webhook_model_success_response(self):
         model = N8NWebhookModel("https://example.com/webhook", token="abc123")
-        with patch("src.agent.urlopen") as mock_urlopen:
+        with patch("um_agente_de_ia.agent.urlopen") as mock_urlopen:
             response = mock_urlopen.return_value.__enter__.return_value
             response.read.return_value = b'{"response":"ok n8n"}'
             response.headers.get_content_charset.return_value = "utf-8"
@@ -35,7 +35,7 @@ class AgentTests(unittest.TestCase):
 
     def test_n8n_webhook_model_wraps_transport_errors(self):
         model = N8NWebhookModel("https://example.com/webhook")
-        with patch("src.agent.urlopen", side_effect=URLError("offline")):
+        with patch("um_agente_de_ia.agent.urlopen", side_effect=URLError("offline")):
             with self.assertRaises(RuntimeError) as ctx:
                 model.generate("Teste")
             self.assertIn("https://example.com/webhook", str(ctx.exception))
@@ -43,7 +43,7 @@ class AgentTests(unittest.TestCase):
 
     def test_openai_model_success_response(self):
         model = OpenAIModel("sk-test")
-        with patch("src.agent.urlopen") as mock_urlopen:
+        with patch("um_agente_de_ia.agent.urlopen") as mock_urlopen:
             response = mock_urlopen.return_value.__enter__.return_value
             response.read.return_value = b'{"choices":[{"message":{"content":"resposta openai"}}]}'
             response.headers.get_content_charset.return_value = "utf-8"
@@ -60,7 +60,7 @@ class AgentTests(unittest.TestCase):
 
     def test_openai_model_wraps_transport_errors(self):
         model = OpenAIModel("sk-test")
-        with patch("src.agent.urlopen", side_effect=URLError("offline")):
+        with patch("um_agente_de_ia.agent.urlopen", side_effect=URLError("offline")):
             with self.assertRaises(RuntimeError) as ctx:
                 model.generate("Teste")
             self.assertIn("https://api.openai.com/v1/chat/completions", str(ctx.exception))
@@ -168,7 +168,7 @@ class AgentTests(unittest.TestCase):
             endpoint="https://my-resource.openai.azure.com",
             deployment_name="gpt-4o",
         )
-        with patch("src.agent.urlopen") as mock_urlopen:
+        with patch("um_agente_de_ia.agent.urlopen") as mock_urlopen:
             response = mock_urlopen.return_value.__enter__.return_value
             response.read.return_value = b'{"choices":[{"message":{"content":"resposta azure"}}]}'
             response.headers.get_content_charset.return_value = "utf-8"
@@ -199,7 +199,7 @@ class AgentTests(unittest.TestCase):
             endpoint="https://my-resource.openai.azure.com",
             deployment_name="gpt-4o",
         )
-        with patch("src.agent.urlopen", side_effect=URLError("offline")):
+        with patch("um_agente_de_ia.agent.urlopen", side_effect=URLError("offline")):
             with self.assertRaises(RuntimeError) as ctx:
                 model.generate("Teste")
         self.assertIn("Azure OpenAI", str(ctx.exception))
@@ -212,7 +212,7 @@ class AgentTests(unittest.TestCase):
         }).encode("utf-8")
         mock_client.invoke_model.return_value = {"body": io.BytesIO(response_payload)}
 
-        with patch("src.agent.boto3", mock_boto3):
+        with patch("um_agente_de_ia.agent.boto3", mock_boto3):
             model = BedrockModel(model_id="anthropic.claude-3-haiku-20240307-v1:0", region_name="us-east-1")
             answer = model.generate("Teste Bedrock")
 
@@ -229,7 +229,7 @@ class AgentTests(unittest.TestCase):
         mock_client = mock_boto3.client.return_value
         mock_client.invoke_model.side_effect = Exception("AccessDenied")
 
-        with patch("src.agent.boto3", mock_boto3):
+        with patch("um_agente_de_ia.agent.boto3", mock_boto3):
             model = BedrockModel()
             with self.assertRaises(RuntimeError) as ctx:
                 model.generate("Teste")
@@ -237,7 +237,7 @@ class AgentTests(unittest.TestCase):
         self.assertIsInstance(ctx.exception.__cause__, Exception)
 
     def test_bedrock_model_raises_when_boto3_unavailable(self):
-        with patch("src.agent.boto3", None):
+        with patch("um_agente_de_ia.agent.boto3", None):
             with self.assertRaises(ImportError) as ctx:
                 BedrockModel()
         self.assertIn("boto3", str(ctx.exception))

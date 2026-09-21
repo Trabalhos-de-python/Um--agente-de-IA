@@ -17,4 +17,4 @@ aws = [
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["src", "src.*"]
+include = ["um_agente_de_ia", "um_agente_de_ia.*"]
