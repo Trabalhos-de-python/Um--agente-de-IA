@@ -1,2 +1,1 @@
-# Dependência instalada por padrão no ambiente do repositório para integrações AWS (Bedrock e S3)
 boto3>=1.34

@@ -135,9 +135,10 @@ class N8NWebhookModel:
             raise ValueError(
                 f"webhook_url do n8n precisa ser uma URL HTTP/HTTPS válida, recebido: {normalized_url}"
             )
+        normalized_token = token.strip() if token is not None else None
         self._webhook_url = normalized_url
         self._timeout = timeout
-        self._token = token
+        self._token = normalized_token or None
 
     def generate(self, prompt: str) -> str:
         payload = json.dumps({"prompt": prompt}).encode("utf-8")

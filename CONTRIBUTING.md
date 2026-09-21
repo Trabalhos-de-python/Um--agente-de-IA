@@ -27,11 +27,6 @@ Opcionalmente, para instalar o projeto em modo editável:
 python -m pip install -e .
 ```
 
-Se você for trabalhar com as integrações AWS, instale o extra correspondente:
-
-```bash
-python -m pip install -e ".[aws]"
-```
 
 ## Executando testes
 

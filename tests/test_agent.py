@@ -43,6 +43,18 @@ class AgentTests(unittest.TestCase):
             self.assertIn("https://example.com/webhook", str(ctx.exception))
             self.assertIsInstance(ctx.exception.__cause__, URLError)
 
+    def test_n8n_webhook_model_ignores_blank_token(self):
+        model = N8NWebhookModel("https://example.com/webhook", token="   ")
+        with patch("um_agente_de_ia.agent.urlopen") as mock_urlopen:
+            response = mock_urlopen.return_value.__enter__.return_value
+            response.read.return_value = b'{"response":"ok n8n"}'
+            response.headers.get_content_charset.return_value = "utf-8"
+
+            model.generate("Teste n8n")
+
+            request = mock_urlopen.call_args.args[0]
+            self.assertNotIn("Authorization", request.headers)
+
     def test_openai_model_success_response(self):
         model = OpenAIModel("sk-test")
         with patch("um_agente_de_ia.agent.urlopen") as mock_urlopen:

@@ -98,13 +98,7 @@ aws configure
 python -m pip install -r requirements.txt
 ```
 
-`boto3` é usado nas integrações com AWS (Bedrock e S3). O restante do projeto funciona só com a biblioteca padrão do Python.
-
-Para instalação editável com suporte às integrações AWS:
-
-```bash
-python -m pip install -e ".[aws]"
-```
+`boto3` é instalado junto com o pacote para manter as integrações com AWS (Bedrock e S3) disponíveis por padrão.
 
 ## Infraestrutura sugerida
 - Executar localmente com Python.

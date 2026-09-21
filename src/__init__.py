@@ -1,1 +1,1 @@
-"""Pacote principal do projeto Um Agente de IA."""
+from um_agente_de_ia import *
