@@ -130,12 +130,12 @@ def create_app(
     def index_documents(payload: DocumentsRequest) -> dict[str, object]:
         documents = [Document(item.id, item.content) for item in payload.documents]
         try:
-            retriever.add_documents(documents)
+            indexed_documents = retriever.add_documents(documents)
         except RuntimeError as exc:
             raise HTTPException(status_code=502, detail=str(exc)) from exc
-        observability.record_documents_indexed(len(documents))
+        observability.record_documents_indexed(indexed_documents)
         return {
-            "indexed_documents": len(documents),
+            "indexed_documents": indexed_documents,
             "vector_backend": "qdrant" if isinstance(retriever, VectorRetriever) else "simple",
         }
 

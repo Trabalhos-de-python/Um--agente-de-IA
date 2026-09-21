@@ -82,7 +82,7 @@ class Retriever(Protocol):
     def retrieve(self, query: str, k: int | None = None) -> list[Document]:
         ...
 
-    def add_documents(self, documents: Iterable[Document]) -> None:
+    def add_documents(self, documents: Iterable[Document]) -> int:
         ...
 
 
@@ -494,6 +494,13 @@ class QdrantVectorStore:
     def ensure_collection(self) -> None:
         if self._collection_ready:
             return
+        try:
+            self._request("GET", f"/collections/{self._collection_path}", None)
+            self._collection_ready = True
+            return
+        except RuntimeError as exc:
+            if "404" not in str(exc):
+                raise
         self._request(
             "PUT",
             f"/collections/{self._collection_path}",
@@ -589,24 +596,29 @@ class SimpleRetriever:
     """Retriever baseado em TF-IDF simples usando apenas a stdlib."""
 
     def __init__(self, documents: Iterable[Document], default_k: int = 3) -> None:
-        self._documents = list(documents)
+        self._documents_by_id: dict[str, Document] = {}
+        self._documents: list[Document] = []
         self.default_k = default_k
         self._idf: dict[str, float] = {}
         self._doc_tfs: list[dict[str, float]] = []
-        self._build_index()
+        self.add_documents(documents)
 
     @property
     def document_count(self) -> int:
-        return len(self._documents)
+        return len(self._documents_by_id)
 
     @staticmethod
     def _tokenize(text: str) -> list[str]:
         cleaned = re.sub(r"[^\w\s]", " ", text.lower())
         return [t for t in cleaned.split() if t and t not in _PT_STOPWORDS]
 
-    def add_documents(self, documents: Iterable[Document]) -> None:
-        self._documents.extend(documents)
+    def add_documents(self, documents: Iterable[Document]) -> int:
+        previous_count = len(self._documents_by_id)
+        for document in documents:
+            self._documents_by_id[document.id] = document
+        self._documents = list(self._documents_by_id.values())
         self._build_index()
+        return len(self._documents_by_id) - previous_count
 
     def _build_index(self) -> None:
         n = len(self._documents)
@@ -672,12 +684,12 @@ class VectorRetriever:
     def document_count(self) -> int:
         return self._fallback.document_count
 
-    def add_documents(self, documents: Iterable[Document]) -> None:
+    def add_documents(self, documents: Iterable[Document]) -> int:
         items = list(documents)
         if not items:
-            return
+            return 0
         self.vector_store.upsert_documents(items, self.embedder)
-        self._fallback.add_documents(items)
+        return self._fallback.add_documents(items)
 
     def retrieve(self, query: str, k: int | None = None) -> list[Document]:
         top_k = k if k is not None else self.default_k

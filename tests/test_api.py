@@ -74,6 +74,14 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(response["indexed_documents"], 1)
         self.assertEqual(health()["local_documents_indexed"], 1)
 
+        duplicate = index_documents(
+            DocumentsRequest(
+                documents=[DocumentPayload(id="doc-1", content="FastAPI expõe APIs REST para o agente.")]
+            )
+        )
+        self.assertEqual(duplicate["indexed_documents"], 0)
+        self.assertEqual(health()["local_documents_indexed"], 1)
+
         answer = ask_question(AskRequest(question="Como a API REST foi exposta?"))
         self.assertIn("FastAPI expõe APIs REST", answer["answer"])
         self.assertEqual(answer["triggered_rules"], [])
@@ -106,7 +114,6 @@ class ApiTests(unittest.TestCase):
         responses = [
             _mock_response({"status": "ok", "result": True}),
             _mock_response({"status": "ok", "result": {"operation_id": 1}}),
-            _mock_response({"status": "ok", "result": True}),
             _mock_response({
                 "status": "ok",
                 "result": [{"id": "doc-1", "payload": {"content": "Banco vetorial com Qdrant"}}],
