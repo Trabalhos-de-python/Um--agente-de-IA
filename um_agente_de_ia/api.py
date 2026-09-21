@@ -54,9 +54,9 @@ def _build_retriever() -> Retriever:
             qdrant_url,
             os.getenv("QDRANT_COLLECTION", "um-agente-de-ia"),
             api_key=os.getenv("QDRANT_API_KEY"),
-        )
+        ),
+        fallback_documents=_seed_documents(),
     )
-    retriever.add_documents(_seed_documents())
     return retriever
 
 

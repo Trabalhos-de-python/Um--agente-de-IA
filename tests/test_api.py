@@ -123,3 +123,20 @@ class ApiTests(unittest.TestCase):
         called_urls = [call.args[0].full_url for call in mock_urlopen.call_args_list]
         self.assertIn("https://qdrant.example.com/collections/docs", called_urls[0])
         self.assertIn("https://qdrant.example.com/collections/docs/points/search", called_urls[-1])
+
+    def test_vector_retriever_falls_back_when_qdrant_search_fails(self):
+        retriever = VectorRetriever(
+            QdrantVectorStore("https://qdrant.example.com", "docs"),
+            fallback_documents=[Document("doc-1", "Banco vetorial com fallback local")],
+            default_k=1,
+        )
+
+        with patch.object(
+            retriever.vector_store,
+            "search",
+            side_effect=RuntimeError("Qdrant indisponível"),
+        ):
+            documents = retriever.retrieve("fallback local")
+
+        self.assertEqual(len(documents), 1)
+        self.assertEqual(documents[0].id, "doc-1")
