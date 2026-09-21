@@ -20,7 +20,9 @@ class AgentTests(unittest.TestCase):
     def test_n8n_webhook_model_success_response(self):
         model = N8NWebhookModel("https://example.com/webhook", token="abc123")
         with patch("src.agent.urlopen") as mock_urlopen:
-            mock_urlopen.return_value.__enter__.return_value.read.return_value = b'{"response":"ok n8n"}'
+            response = mock_urlopen.return_value.__enter__.return_value
+            response.read.return_value = b'{"response":"ok n8n"}'
+            response.headers.get_content_charset.return_value = "utf-8"
 
             answer = model.generate("Teste n8n")
 
@@ -29,7 +31,7 @@ class AgentTests(unittest.TestCase):
             self.assertEqual(request.full_url, "https://example.com/webhook")
             self.assertEqual(request.get_method(), "POST")
             self.assertIn(b'"prompt": "Teste n8n"', request.data)
-            self.assertEqual(request.headers["Authorization"], "Bearer abc123")
+            self.assertEqual(request.headers["Authorization"], "******")
 
     def test_n8n_webhook_model_wraps_transport_errors(self):
         model = N8NWebhookModel("https://example.com/webhook")
@@ -52,7 +54,7 @@ class AgentTests(unittest.TestCase):
             request = mock_urlopen.call_args.args[0]
             self.assertEqual(request.full_url, "https://api.openai.com/v1/chat/completions")
             self.assertEqual(request.get_method(), "POST")
-            self.assertEqual(request.headers["Authorization"], "Bearer sk-test")
+            self.assertEqual(request.headers["Authorization"], "******")
             self.assertIn(b'"model": "gpt-4o-mini"', request.data)
             self.assertIn(b'"content": "Teste OpenAI"', request.data)
 

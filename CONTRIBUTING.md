@@ -13,12 +13,18 @@ Obrigado por querer contribuir com o **Um Agente de IA**.
 ## Ambiente local
 
 Pré-requisitos:
-- Python 3.11+
+- Python 3.12+
 
 Instalação:
 
 ```bash
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
+```
+
+Opcionalmente, para instalar o projeto em modo editável:
+
+```bash
+python -m pip install -e .
 ```
 
 ## Executando testes
@@ -26,7 +32,7 @@ pip install -r requirements.txt
 Antes de abrir PR, rode:
 
 ```bash
-python3 -m unittest discover -s tests -p 'test_*.py'
+python -m unittest discover -s tests -p 'test_*.py'
 ```
 
 ## Padrões de contribuição

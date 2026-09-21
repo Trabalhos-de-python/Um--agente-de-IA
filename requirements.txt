@@ -1,1 +1,2 @@
+# Dependência opcional para integrações AWS (Bedrock e S3)
 boto3>=1.34

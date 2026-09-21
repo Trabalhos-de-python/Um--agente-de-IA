@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 import json
 import math
 import re
@@ -22,6 +22,16 @@ _PT_STOPWORDS: frozenset[str] = frozenset({
     "para", "pela", "pelas", "pelo", "pelos", "por", "que", "se",
     "um", "uma", "uns", "umas",
 })
+
+
+def _decode_response_body(response: object, default_charset: str = "utf-8") -> str:
+    headers = getattr(response, "headers", None)
+    charset = default_charset
+    if headers is not None and hasattr(headers, "get_content_charset"):
+        detected = headers.get_content_charset(default_charset)
+        if isinstance(detected, str):
+            charset = detected
+    return response.read().decode(charset)
 
 
 @dataclass(frozen=True)
@@ -92,10 +102,7 @@ class AzureOpenAIModel:
 
         try:
             with urlopen(request, timeout=self._timeout) as response:
-                charset = response.headers.get_content_charset("utf-8")
-                if not isinstance(charset, str):
-                    charset = "utf-8"
-                response_body = response.read().decode(charset)
+                response_body = _decode_response_body(response)
         except URLError as exc:
             raise RuntimeError(f"falha ao chamar Azure OpenAI em {self._url}: {exc}") from exc
 
@@ -136,15 +143,12 @@ class N8NWebhookModel:
         payload = json.dumps({"prompt": prompt}).encode("utf-8")
         headers = {"Content-Type": "application/json"}
         if self._token:
-            headers["Authorization"] = f"Bearer {self._token}"
+            headers["Authorization"] = f"******"
 
         request = Request(self._webhook_url, data=payload, headers=headers, method="POST")
         try:
             with urlopen(request, timeout=self._timeout) as response:
-                charset = response.headers.get_content_charset("utf-8")
-                if not isinstance(charset, str):
-                    charset = "utf-8"
-                response_body = response.read().decode(charset)
+                response_body = _decode_response_body(response)
         except URLError as exc:
             raise RuntimeError(f"falha ao chamar webhook do n8n em {self._webhook_url}: {exc}") from exc
 
@@ -191,8 +195,7 @@ class OpenAIModel:
 
         try:
             with urlopen(request, timeout=self._timeout) as response:
-                charset = response.headers.get_content_charset("utf-8")
-                response_body = response.read().decode(charset)
+                response_body = _decode_response_body(response)
         except URLError as exc:
             raise RuntimeError(f"falha ao chamar OpenAI em {self._url}: {exc}") from exc
 

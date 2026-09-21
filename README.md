@@ -6,9 +6,10 @@ Projeto base para criar uma IA do zero com estrutura completa: sistemas, design,
 Construir um agente de IA modular para apoiar projetos em tempo real, usando **RAG** (Retrieval-Augmented Generation) e integração com **modelos prontos** (OpenAI, Azure OpenAI, Ollama, etc).
 
 ## Stack (linguagem e bibliotecas)
-- **Linguagem:** Python 3.11+
+- **Linguagem:** Python 3.12+
 - **Bibliotecas padrão usadas no código atual:** `dataclasses`, `typing`, `json`, `pathlib`, `re`, `urllib`
 - **Modelos prontos:** via adapter (`ReadyModel`), permitindo trocar o provedor sem alterar o núcleo do agente
+- **Empacotamento:** `pyproject.toml` com metadados do projeto e requisito mínimo de Python
 
 ## Estrutura
 ```text
@@ -94,8 +95,10 @@ aws configure
 
 ### Dependências
 ```bash
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 ```
+
+`boto3` é usado nas integrações com AWS (Bedrock e S3). O restante do projeto funciona só com a biblioteca padrão do Python.
 
 ## Infraestrutura sugerida
 - Executar localmente com Python.
@@ -142,14 +145,30 @@ pip install -r requirements.txt
 
 ## Como executar
 ```bash
-python3 -m src.main
+python -m src.main
 ```
+
+Se preferir usar instalação editável com a estrutura moderna do projeto:
+
+```bash
+python -m pip install -e .
+python -m src.main
+```
+
+## Testes
+```bash
+python -m unittest discover -s tests -p 'test_*.py'
+```
+
+## Compatibilidade
+- Desenvolvimento local validado em Python 3.12
+- CI configurada para Python 3.12 e 3.13
 
 ## Página inicial
 - Foi adicionada uma página estática em `index.html`.
 - Para abrir localmente no navegador, execute um servidor local:
 ```bash
-python3 -m http.server 8000
+python -m http.server 8000
 ```
 Depois acesse: `http://localhost:8000`
 
