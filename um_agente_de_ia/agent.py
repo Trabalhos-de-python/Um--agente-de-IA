@@ -662,8 +662,8 @@ class VectorRetriever:
         items = list(documents)
         if not items:
             return
-        self._fallback.add_documents(items)
         self.vector_store.upsert_documents(items, self.embedder)
+        self._fallback.add_documents(items)
 
     def retrieve(self, query: str, k: int | None = None) -> list[Document]:
         top_k = k if k is not None else self.default_k
